@@ -22,8 +22,10 @@ module OX
     def property( property_ref, opts={})
       @properties ||= {}
       @properties[property_ref] = opts.merge({:ref=>property_ref})
-      configure_property @properties[property_ref]
-      configure_paths @properties[property_ref]
+      prop_hash = @properties[property_ref]
+      configure_property prop_hash
+      configure_paths prop_hash
+      #generate_builders_for_property @properties[property_ref]
     end
     
     def configure_property(prop_hash=root_config)
@@ -94,7 +96,7 @@ module OX
       if se.instance_of?(String)
          
         se_relative_xpath = generate_xpath({:path=>se}, :relative=>true)
-        se_xpath = parent_prop_hash[:xpath] + "/" + se_relative_xpath
+        se_xpath = parent_prop_hash[:xpath] + "/" + se_relative_xpath # re-use the parent property's xpath
         
         se_xpath_constrained_opts = se_xpath_opts.merge({:constraints=>{:path=>se}})
         se_xpath_constrained = generate_xpath(parent_prop_hash, se_xpath_constrained_opts)
@@ -104,8 +106,8 @@ module OX
         if properties.has_key?(se)
           se_props = properties[se]
           
-          se_relative_xpath = se_props[:xpath_relative]
-          se_xpath = parent_prop_hash[:xpath] + "/" + se_relative_xpath
+          se_relative_xpath = se_props[:xpath_relative]  # the relative path is always the same regardless of where in the tree you are, so re-use the property's relative xpath (which has already been generated).
+          se_xpath = parent_prop_hash[:xpath] + "/" + se_relative_xpath # re-use the parent property's xpath
           
           se_xpath_constrained_opts = parent_xpath_opts.merge(:constraints => se_props, :subelement_of => parent_prop_hash[:ref])        
           se_xpath_constrained = generate_xpath(parent_prop_hash, se_xpath_constrained_opts)
@@ -215,6 +217,55 @@ module OX
       
       # result = eval( '"' + template + '"' )
       return template.gsub( /:::(.*?):::/ ) { '#{'+$1+'}' }
+    end
+    
+    
+    def generate_builders_for_property( prop_hash=root_config )
+      
+      attributes_opts = {}
+      attributes_call_items = []
+      
+
+      prop_hash[:attributes].each do |attribute| 
+        key_name = ""
+      
+        if attribute.instance_of?(Hash)
+          attr_name = attribute.keys.first
+          if attribute[attr_name].instance_of?(Array)
+            attr_default = attribute[attr_name].first
+          else
+            attr_default = attribute[attr_name]
+          end
+        else 
+          attr_name = attribute
+          attr_default = ""
+        end
+      
+        if attr_name.instance_of?(String) || attr_name.instance_of?(String) 
+          key_name = "\"#{attr_name}\""
+          attributes_opts[key_name] = attr_default
+          attributes_call_items <<  "#{key_name}=>opts[#{key_name}]"
+        end
+      
+      end
+      
+      opts_defaults = attributes_opts
+      
+      builder_call_body = <<-END
+        opts = #{opts_defaults.inspect}.merge! opts
+        builder = Nokogiri::XML::Builder.new do |xml|
+          xml.#{prop_hash[:ref]}( #{delimited_list(attributes_call_items)} ) {
+          }
+        end
+      END
+      
+      logger.debug "adding method #{prop_hash[:ref]} to #{self} with #{builder_call_body}"
+      
+      eval <<-END
+        def #{prop_hash[:ref].to_s} text, opts={}
+          #{builder_call_body}
+        end
+      END
     end
     
     ##
