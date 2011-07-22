@@ -426,9 +426,44 @@ describe "OM::XML::TermValueOperators" do
   describe "build_ancestors" do
     it "should raise an error if it cant find a starting point for building from" do
       lambda { @empty_sample.build_ancestors( [:journal, :issue], 0) }.should raise_error(OM::XML::TemplateMissingException, "Cannot insert nodes into the document because it is empty.") 
-      
-      
     end
+  end
+  
+  describe "find_or_build_tree" do
+    it "should recursively build ancestors" do
+      expected_response = [:person, {:role=>3}]
+      @sample.find_or_build_tree(:person, {:role=>3}).should == expected_response
+      @sample.node_exists?(*expected_response).should == true
+    end
+    
+    it "should create the necessary ancestor nodes when you insert a new term value" do
+  	  @sample.find_by_terms(:person).length.should == 4
+  	  
+  	  @sample.find_or_build_tree({:person=>8}).should == [{:person=>5}]
+  	  
+      person_entries = @sample.find_by_terms(:person)
+      person_entries.length.should == 5
+	  end
+	  
+	  it "should create the necessary ancestor nodes for deep trees of ancestors" do
+  	  @article.find_by_terms({:journal=>0}).length.should == 1
+  	  @article.find_by_terms({:journal=>0}, :issue).length.should == 1
+        
+      @article.find_or_build_tree({:journal=>0}, {:issue=>3}, :pages).should == [{:journal=>0}, {:issue=>2}, :pages]
+      
+      @article.find_by_terms({:journal=>0}, :issue).length.should == 2
+      @article.find_by_terms({:journal=>0}, {:issue=>1}, :pages).length.should == 1
+	  end
+	  
+  end
+  
+  describe "identify_ancestors_to_build" do
+    it "should figure out what ancestors need to be built in order to insert a node" do
+    end
+  end
+  
+  describe "find_nearest_ancestor" do
+    it "should find the nearest ancestor in a document"
   end
   
   describe "insert_from_template" do

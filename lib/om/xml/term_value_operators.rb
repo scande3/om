@@ -145,9 +145,53 @@ module OM::XML::TermValueOperators
     return parent_node
   end
   
+  # Check whether a hierarchy of nodes exists in the document
+  # If they don't exist, recursively build nodes that are missing.
+  # Corrects node indexes in the pointer array to correspond to the ancestors that it creates. (ie. if you tell it to create a 5th :person node, but there are currently only two, it will create a new :person node and fix your tree's pointers to use :person=>3 instead of :person=>5)
+  def find_or_build_tree(*tree_to_build)
+    # check for parent
+    if node_exists?(*tree_to_build)
+      return tree_to_build
+    else
+      # save your pointer
+      ancestors = tree_to_build.dup
+      current_term_pointer = ancestors.pop
+      
+      # Recursively build ancestors
+      new_ancestral_line = find_or_build_tree(*ancestors)
+      
+      # Insert the node 
+      add_child_node(new_ancestral_line, current_term_pointer)
+      
+      # Correct the node index in the pointer if necessary
+      built_tree = ensure_accuracy_of_term_pointer_index(*new_ancestral_line+[current_term_pointer])
+      
+      return built_tree
+    end
+  end
+  
+  def ensure_accuracy_of_term_pointer_index(*term_pointer)
+    unless node_exists?(*term_pointer)
+      suspect_pointer = term_pointer.pop
+      if suspect_pointer.kind_of?(Hash)
+        term_key = suspect_pointer.keys.first
+        if term_pointer.empty?
+          corrected_term_index = find_by_terms(term_key).length
+        else
+          corrected_term_index = find_by_terms(*term_pointer+[suspect_pointer]).length
+        end
+        corrected_pointer = {term_key => corrected_term_index}
+      end
+      term_pointer << corrected_pointer
+    end
+    return term_pointer
+  end
+  
   # Creates necesary ancestor nodes to support inserting a new term value where the ancestor node(s) don't exist yet.
   # Corrects node indexes in the pointer array to correspond to the ancestors that it creates.
   # Returns a two-value array with the 'parent' node and a corrected pointer array
+  # @param [Array] parent_select Term pointer for the immediate parent of the node you're building ancestors for
+  # @param [Integer] parent_index index of immediate parent of the node you're building ancestors for
   # @return [Nokogiri::XML::Node] the 'parent' (the final node in the ancestor tree)
   # @return [Array] corrected pointer array for retrieving this parent
   def build_ancestors(parent_select, parent_index)
@@ -157,6 +201,7 @@ module OM::XML::TermValueOperators
     if starting_point.nil? 
       starting_point = [] 
     end
+    
     to_build = []
     until !starting_point.empty?
       to_build = [parent_select.pop] + to_build
@@ -165,6 +210,7 @@ module OM::XML::TermValueOperators
         raise OM::XML::TemplateMissingException, "Cannot insert nodes into the document because it is empty."
       end
     end
+    
     to_build.each do |term_pointer|      
       parent_select << term_pointer
       
