@@ -32,13 +32,14 @@ describe "OM::XML::DynamicNode" do
     end
 
     it "Should work with proxies" do
-       @article.title.should == ["ARTICLE TITLE HYDRANGEA ARTICLE 1", "Artikkelin otsikko Hydrangea artiklan 1", "TITLE OF HOST JOURNAL"]
-      # ## TODO WHY ARE WE FAILING ON THIS NEXT LINE. HAS NOTHING TO DO WITH DYNAMIC NODES
-      # @article.term_values(:title,:main_title_lang).should == ['eng']
+      @article.title.should == ["ARTICLE TITLE HYDRANGEA ARTICLE 1", "Artikkelin otsikko Hydrangea artiklan 1", "TITLE OF HOST JOURNAL"]
       @article.title.main_title_lang.should == ['eng']
 
       @article.title[1].to_pointer.should == [{:title => 1}]
-      @article.title[1].xpath.should == "//oxns:titleInfo/oxns:title[2]"
+      # You're actually looking to run either of these internally:
+      # @article.find_by_terms("//oxns:mods/oxns:titleInfo[2]/oxns:title").text # get the title value from the second titleInfo node
+      # @article.find_by_terms("//oxns:mods/oxns:titleInfo/oxns:title")[1].text # get the second title from the array of all titles in the document
+      @article.title[1].xpath.should == "//oxns:titleInfo/oxns:title[2]" # this is wrong.
       @article.title[1].should == "Artikkelin otsikko Hydrangea artiklan 1"
     end
 
@@ -53,6 +54,7 @@ describe "OM::XML::DynamicNode" do
 
       @article.subject.topic[1].should == ["TOPIC 2"]
       ### TODO why doesn't this work?
+      
       @article.term_values(:subject, {:topic => 1}).should == "TOPIC 2"
     end
 

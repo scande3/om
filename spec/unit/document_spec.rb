@@ -44,8 +44,13 @@ describe "OM::XML::Document" do
           t.text(:path=>"roleTerm",:attributes=>{:type=>"text"})
           t.code(:path=>"roleTerm",:attributes=>{:type=>"code"})
         }
+        
+        t.subject {
+          t.topic(:index_as=>[:facetable])
+        }
+        
         t.journal(:path=>'relatedItem', :attributes=>{:type=>"host"}) {
-          t.title_info
+          t.title_info(:ref=>[:title_info])
           t.origin_info(:path=>"originInfo")
           t.issn(:path=>"identifier", :attributes=>{:type=>"issn"})
           t.issue(:ref=>:issue)
@@ -59,6 +64,8 @@ describe "OM::XML::Document" do
           # t.end_page(:path=>"extent", :attributes=>{:unit=>"pages"}, :default_content_path => "end")
           t.publication_date(:path=>"date")
         }
+        t.title(:proxy=>[:title_info, :main_title])
+        t.journal_title(:proxy=>[:journal, :title_info, :main_title])
       end
            
     end
@@ -145,6 +152,11 @@ describe "OM::XML::Document" do
 
     it "should support xpath queries as the pointer" do
       @mods_article.find_by_terms('//oxns:name[@type="personal"][1]/oxns:namePart[1]').first.text.should == "FAMILY NAME"
+    end
+    
+    it "should handle proxy terms with indexes in their queries" do
+      @mods_article.find_by_terms({:title => 1}).length.should == 1
+      @mods_article.term_values({:title => 1}).should == ["Artikkelin otsikko Hydrangea artiklan 1"]      
     end
   end
   

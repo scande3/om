@@ -76,8 +76,29 @@ module OM::XML::Document
   #   find_by_terms( [:person, 1, :first_name] )
   # Currently, indexes must be integers.
   def find_by_terms(*term_pointer)
-    xpath = self.class.terminology.xpath_with_indexes(*term_pointer)   
-    find_by_xpath(xpath) unless xpath.nil?
+    # xpath = self.class.terminology.xpath_with_indexes(*term_pointer)   
+    # find_by_xpath(xpath) unless xpath.nil?
+    
+    # Unless the term_pointer is a string (xpath), grab the term from the terminology
+    if term_pointer.length == 1 && term_pointer.first.instance_of?(String)
+      term = nil
+    else
+      term = self.class.terminology.retrieve_term(*OM.pointers_to_flat_array(term_pointer, false))
+    end
+    
+    if term.kind_of?(OM::XML::NamedTermProxy) &&  term_pointer.last.kind_of?(Hash)
+      clean_pointer = term_pointer.dup
+	    final_pointer = clean_pointer.pop
+	    final_index = final_pointer.values.first
+	    final_key = final_pointer.keys.first
+	    clean_pointer << final_key
+      xpath = self.class.terminology.xpath_with_indexes(*clean_pointer) 
+      result = Array[ find_by_xpath(xpath)[final_index] ]
+    else
+    	xpath = self.class.terminology.xpath_with_indexes(*term_pointer)   
+    	result = find_by_xpath(xpath) unless xpath.nil?	
+    end
+    return result
   end
   
   # Test whether the document has a node corresponding to the given term_pointer
