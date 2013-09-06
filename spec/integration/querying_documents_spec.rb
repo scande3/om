@@ -62,11 +62,17 @@ describe "Rspec tests for QUERYING_DOCUMENTS.textile" do
     expect { @doc.find_by_terms :journal, :issue, :BLAH, :start }.to raise_error exp_err
   end
 
-  it "proxies" do
-    @term.xpath_for(:title).should ==
-      '//oxns:titleInfo/oxns:title'
-    @term.xpath_for(:journal_title)
-      '//oxns:relatedItem[@type="host"]/oxns:titleInfo/oxns:title'
-  end
+  describe "proxies" do
+    it "should return the correct xpath" do
+      @term.xpath_for(:title).should ==
+        '//oxns:titleInfo/oxns:title'
+      @term.xpath_for(:journal_title)
+        '//oxns:relatedItem[@type="host"]/oxns:titleInfo/oxns:title'
+    end
 
+    it "using the root element should return terms" do
+      @term.xpath_for(:mods_title).should == '//oxns:mods/oxns:titleInfo/oxns:title'
+      @doc.term_values(:mods_title).should == ["ARTICLE TITLE HYDRANGEA ARTICLE 1", "Artikkelin otsikko Hydrangea artiklan 1"]
+    end
+  end
 end

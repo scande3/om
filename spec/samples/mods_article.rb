@@ -76,6 +76,7 @@ class OM::Samples::ModsArticle
       }
       t.publication_url(:proxy=>[:location,:url])
       t.title(:proxy=>[:title_info, :main_title])
+      t.mods_title(:proxy=>[:mods, :title_info, :main_title])
       t.journal_title(:proxy=>[:journal, :title_info, :main_title])
     end
     
